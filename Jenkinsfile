@@ -1,34 +1,65 @@
+
 pipeline {
     agent any
 
+    environment {
+        IMAGE_NAME = 'tfc-nation'
+        CONTAINER_NAME = 'tfc-nation-container'
+        HOST_PORT = '8082'
+    }
+
     stages {
+
+        stage('Check Source') {
+            steps {
+                sh 'ls -la'
+            }
+        }
 
         stage('Build Docker Image') {
             steps {
-                sh 'docker build -t myapp .'
+                sh 'docker build -t ${IMAGE_NAME}:latest .'
             }
         }
 
-        stage('Stop Old Container') {
+        stage('Remove Old Container') {
             steps {
-                sh 'docker rm -f mycontainer || true'
+                sh 'docker rm -f ${CONTAINER_NAME} || true'
             }
         }
 
-        stage('Run Docker Container') {
+        stage('Run Container') {
             steps {
-                sh 'docker run -d -p 80:80 --name mycontainer myapp'
+                sh '''
+                    docker run -d \
+                    --name ${CONTAINER_NAME} \
+                    -p ${HOST_PORT}:80 \
+                    ${IMAGE_NAME}:latest
+                '''
+            }
+        }
+
+        stage('Verify Website') {
+            steps {
+                sh '''
+                    sleep 3
+                    docker images
+                    docker ps
+                    curl -f -I http://localhost:${HOST_PORT}
+                '''
             }
         }
     }
 
     post {
         success {
-            echo 'Deployment successful!'
+            echo 'TFC NATION DEPLOYMENT SUCCESSFUL!'
+            echo 'Website running on port 8082'
         }
 
         failure {
-            echo 'Deployment failed!'
+            echo 'DEPLOYMENT FAILED!'
+            sh 'docker ps -a || true'
         }
     }
 }
